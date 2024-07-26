@@ -19,7 +19,7 @@ type testCase struct {
 }
 
 type code struct {
-	Bin string `json:"bin"`
+	Bin string `json:"bin"` // This is the opcode in hex
 	Asm string `json:"asm"`
 }
 
