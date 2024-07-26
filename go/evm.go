@@ -11,21 +11,58 @@
 package evm
 
 import (
+	"fmt"
 	"math/big"
 )
+
+var functionMap = map[byte]func([]*big.Int) ([]*big.Int, int, bool){
+	1: add,
+}
 
 // Run runs the EVM code and returns the stack and a success indicator.
 func Evm(code []byte) ([]*big.Int, bool) {
 	var stack []*big.Int
 	pc := 0
+	var success = true
 
 	for pc < len(code) {
+		var tempStack []*big.Int
+		var successFlag bool
 		op := code[pc]
-		pc++
+		n := 0
 
 		// TODO: Implement the EVM here!
-		_ = op // delete this; it's only here to make the compiler think you're already using `op`
+		fmt.Println("******** op *******", op)
+		fmt.Println("********* code ******", code[pc:])
+		fmt.Println("Stack:", stack)
+		// STOP
+		if op == 0 {
+			successFlag = true
+			break
+		}
+		switch op {
+
+		// POP
+		case 80:
+			stack = stack[1:]
+			successFlag = true
+		}
+
+		// Arithmetic Operations
+		if op >= 1 && op <= 11 {
+			stack, n, successFlag = functionMap[op](stack)
+		}
+
+		// opcodes from 95 to 197 are for pushing to stack
+		if op >= 95 && op <= 197 {
+			tempStack, n, successFlag = pushN(code[pc:])
+			stack = append(tempStack, stack...)
+
+		}
+		pc += n + 1
+		success = successFlag && success
+		fmt.Println("this is executing")
 	}
 
-	return stack, true
+	return stack, success
 }
