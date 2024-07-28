@@ -96,10 +96,18 @@ func div(stack []*big.Int) ([]*big.Int, int, bool) {
 	if len(stack) < 2 {
 		return stack, 1, false
 	}
-	//zero := big.NewInt(0)
-	//compare := stack[1].Cmp(zero)
-	//
-	//x := new(big.Int)
+	var tempStack []*big.Int
 
+	zero := big.NewInt(0)
+	compare := stack[1].Cmp(zero)
+	if compare == 0 {
+		tempStack = append(tempStack, big.NewInt(0))
+	} else {
+		x := new(big.Int)
+		x.Div(stack[0], stack[1])
+		tempStack = append(tempStack, x)
+	}
+
+	stack = append(tempStack, stack[2:]...)
 	return stack, 1, true
 }
