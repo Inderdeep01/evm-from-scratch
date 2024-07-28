@@ -20,6 +20,8 @@ var functionMap = map[byte]func([]*big.Int) ([]*big.Int, int, bool){
 	2: multiply,
 	3: sub,
 	4: div,
+	6: mod,
+	8: addmod,
 }
 
 // Run runs the EVM code and returns the stack and a success indicator.

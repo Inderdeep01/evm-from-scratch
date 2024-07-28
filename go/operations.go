@@ -111,3 +111,45 @@ func div(stack []*big.Int) ([]*big.Int, int, bool) {
 	stack = append(tempStack, stack[2:]...)
 	return stack, 1, true
 }
+
+func mod(stack []*big.Int) ([]*big.Int, int, bool) {
+	if len(stack) < 2 {
+		return stack, 1, false
+	}
+	var tempStack []*big.Int
+
+	zero := big.NewInt(0)
+	compare := stack[1].Cmp(zero)
+	if compare == 0 {
+		tempStack = append(tempStack, big.NewInt(0))
+	} else {
+		x := new(big.Int)
+		x.Mod(stack[0], stack[1])
+		tempStack = append(tempStack, x)
+	}
+
+	stack = append(tempStack, stack[2:]...)
+	return stack, 1, true
+}
+
+func addmod(stack []*big.Int) ([]*big.Int, int, bool) {
+	if len(stack) < 3 {
+		return stack, 1, false
+	}
+	var tempStack []*big.Int
+
+	zero := big.NewInt(0)
+	compare := stack[2].Cmp(zero)
+	if compare == 0 {
+		tempStack = append(tempStack, big.NewInt(0))
+	} else {
+		x := new(big.Int)
+		x.Add(stack[0], stack[1])
+		x.Mod(x, stack[2])
+		x = checkForOverflowUnderflow(x)
+		tempStack = append(tempStack, x)
+	}
+
+	stack = append(tempStack, stack[3:]...)
+	return stack, 1, true
+}
