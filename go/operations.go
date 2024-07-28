@@ -1,7 +1,7 @@
 package evm
 
 import (
-	"fmt"
+	"encoding/hex"
 	"math/big"
 )
 
@@ -32,15 +32,74 @@ func pushN(code []byte) ([]*big.Int, int, bool) {
 //	return stack[1:], 1, true
 //}
 
+func checkForOverflowUnderflow(x *big.Int) *big.Int {
+	// check for overflow
+	bytes, _ := hex.DecodeString("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+	y := new(big.Int)
+	y.SetBytes(bytes)
+	compare := x.Cmp(y)
+	if compare == 1 {
+		z := big.NewInt(1)
+		x.Sub(x, y)
+		x.Sub(x, z)
+	}
+	zero := big.NewInt(0)
+	compare = x.Cmp(zero)
+	if compare == -1 {
+		z := big.NewInt(1)
+		x.Add(x, y)
+		x.Add(x, z)
+	}
+	return x
+}
+
 func add(stack []*big.Int) ([]*big.Int, int, bool) {
 	if len(stack) < 2 {
 		return stack, 1, false
 	}
 	x := new(big.Int)
-	fmt.Println(stack[1])
 	x.Add(stack[0], stack[1])
+	x = checkForOverflowUnderflow(x)
 	var tempStack []*big.Int
 	tempStack = append(tempStack, x)
 	stack = append(tempStack, stack[2:]...)
+	return stack, 1, true
+}
+
+func multiply(stack []*big.Int) ([]*big.Int, int, bool) {
+	if len(stack) < 2 {
+		return stack, 1, false
+	}
+	x := new(big.Int)
+	x.Mul(stack[0], stack[1])
+	x = checkForOverflowUnderflow(x)
+	var tempStack []*big.Int
+	tempStack = append(tempStack, x)
+	stack = append(tempStack, stack[2:]...)
+	return stack, 1, true
+}
+
+func sub(stack []*big.Int) ([]*big.Int, int, bool) {
+	if len(stack) < 2 {
+		return stack, 1, false
+	}
+	x := new(big.Int)
+	x.Sub(stack[0], stack[1])
+	x = checkForOverflowUnderflow(x)
+	var tempStack []*big.Int
+	tempStack = append(tempStack, x)
+	stack = append(tempStack, stack[2:]...)
+	return stack, 1, true
+}
+
+func div(stack []*big.Int) ([]*big.Int, int, bool) {
+	if len(stack) < 2 {
+		return stack, 1, false
+	}
+	//zero := big.NewInt(0)
+	//compare := stack[1].Cmp(zero)
+	//
+	//x := new(big.Int)
+
 	return stack, 1, true
 }

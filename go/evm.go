@@ -17,6 +17,9 @@ import (
 
 var functionMap = map[byte]func([]*big.Int) ([]*big.Int, int, bool){
 	1: add,
+	2: multiply,
+	3: sub,
+	4: div,
 }
 
 // Run runs the EVM code and returns the stack and a success indicator.
