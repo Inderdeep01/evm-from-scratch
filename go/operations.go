@@ -2,11 +2,10 @@ package evm
 
 import (
 	"encoding/hex"
+	"fmt"
 	"github.com/holiman/uint256"
 	"math/big"
 )
-
-//const maxIntValue Int =
 
 func pushN(code []byte) ([]*big.Int, int, bool) {
 	var stack []*big.Int
@@ -531,4 +530,52 @@ func getGas() *big.Int {
 	y := new(big.Int)
 	y.SetBytes(bytes)
 	return y
+}
+
+func mstore(stack []*big.Int, memory map[int64]byte) ([]*big.Int, map[int64]byte, bool) {
+	if len(stack) < 2 {
+		return stack, memory, false
+	}
+	offset := stack[0].Int64()
+	bytes := stack[1].Bytes()
+	for i, j := 0, offset; i < len(bytes); i, j = i+1, j+1 {
+		memory[j] = bytes[i]
+	}
+	stack = stack[2:]
+	return stack, memory, true
+}
+
+func mstore8(stack []*big.Int, memory map[int64]byte) ([]*big.Int, map[int64]byte, bool) {
+	if len(stack) < 2 {
+		return stack, memory, false
+	}
+	offset := stack[0].Int64()
+	bytes := stack[1].Bytes()
+
+	memory[offset] = bytes[0]
+	stack = stack[2:]
+	return stack, memory, true
+}
+
+func mload(stack []*big.Int, memory map[int64]byte) ([]*big.Int, map[int64]byte, bool) {
+	if len(stack) < 1 {
+		return stack, memory, false
+	}
+	offset := stack[0].Int64()
+	x := new(big.Int)
+	bytes := make([]byte, 32)
+	for i, j := 0, offset; i < len(bytes); i, j = i+1, j+1 {
+		if j == 32 { //
+			fmt.Println("breaking at", j)
+			break
+		}
+		bytes[i] = memory[j]
+	}
+	fmt.Println("memory:", memory)
+	fmt.Println("bytes:", bytes)
+	x.SetBytes(bytes)
+	var tempStack []*big.Int
+	tempStack = append(tempStack, x)
+	stack = append(tempStack, stack[1:]...)
+	return stack, memory, true
 }
