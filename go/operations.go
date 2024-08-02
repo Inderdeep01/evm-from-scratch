@@ -3,6 +3,7 @@ package evm
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/holiman/uint256"
 	"math/big"
 )
@@ -532,12 +533,13 @@ func getGas() *big.Int {
 	return y
 }
 
-func mstore(stack []*big.Int, memory map[int64]byte) ([]*big.Int, map[int64]byte, bool) {
+func mstore(stack []*big.Int, memory []byte) ([]*big.Int, []byte, bool) {
 	if len(stack) < 2 {
 		return stack, memory, false
 	}
-	offset := stack[0].Int64()
+	offset := int(stack[0].Int64())
 	bytes := stack[1].Bytes()
+	memory = resizeMemoryIfRequired(memory, offset, len(bytes))
 	for i, j := 0, offset; i < len(bytes); i, j = i+1, j+1 {
 		memory[j] = bytes[i]
 	}
@@ -545,37 +547,212 @@ func mstore(stack []*big.Int, memory map[int64]byte) ([]*big.Int, map[int64]byte
 	return stack, memory, true
 }
 
-func mstore8(stack []*big.Int, memory map[int64]byte) ([]*big.Int, map[int64]byte, bool) {
+func mstore8(stack []*big.Int, memory []byte) ([]*big.Int, []byte, bool) {
 	if len(stack) < 2 {
 		return stack, memory, false
 	}
-	offset := stack[0].Int64()
+	offset := int(stack[0].Int64())
 	bytes := stack[1].Bytes()
-
+	memory = resizeMemoryIfRequired(memory, offset, 0)
 	memory[offset] = bytes[0]
 	stack = stack[2:]
 	return stack, memory, true
 }
 
-func mload(stack []*big.Int, memory map[int64]byte) ([]*big.Int, map[int64]byte, bool) {
+func mload(stack []*big.Int, memory []byte) ([]*big.Int, []byte, bool) {
 	if len(stack) < 1 {
 		return stack, memory, false
 	}
-	offset := stack[0].Int64()
+	offset := int(stack[0].Int64())
+	memory = resizeMemoryIfRequired(memory, offset, 31)
 	x := new(big.Int)
 	bytes := make([]byte, 32)
 	for i, j := 0, offset; i < len(bytes); i, j = i+1, j+1 {
-		if j == 32 { //
-			fmt.Println("breaking at", j)
+		if j == len(memory) { //
 			break
 		}
 		bytes[i] = memory[j]
 	}
-	fmt.Println("memory:", memory)
-	fmt.Println("bytes:", bytes)
 	x.SetBytes(bytes)
 	var tempStack []*big.Int
 	tempStack = append(tempStack, x)
 	stack = append(tempStack, stack[1:]...)
 	return stack, memory, true
+}
+
+func msize(stack []*big.Int, memory []byte) ([]*big.Int, bool) {
+	x := big.NewInt(int64(len(memory)))
+	tempStack := []*big.Int{x}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func keccak256(stack []*big.Int, memory []byte) ([]*big.Int, bool) {
+	if len(stack) < 2 {
+		return stack, false
+	}
+	offset := int(stack[0].Int64())
+	bytes := make([]byte, stack[1].Int64())
+	for i, j := 0, offset; i < len(bytes); i, j = i+1, j+1 {
+		if j == len(memory) { //
+			break
+		}
+		bytes[i] = memory[j]
+	}
+	x := new(big.Int)
+	hash := crypto.Keccak256(bytes)
+	x.SetBytes(hash)
+	tempStack := []*big.Int{x}
+	stack = append(tempStack, stack[2:]...)
+	return stack, true
+}
+
+func address(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(tx.To[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	addr := new(big.Int)
+	addr.SetBytes(bytes)
+	tempStack := []*big.Int{addr}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func caller(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(tx.From[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	sender := new(big.Int)
+	sender.SetBytes(bytes)
+	tempStack := []*big.Int{sender}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func origin(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(tx.Origin[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	txOrigin := new(big.Int)
+	txOrigin.SetBytes(bytes)
+	tempStack := []*big.Int{txOrigin}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func gasprice(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(tx.GasPrice[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	gasPrice := new(big.Int)
+	gasPrice.SetBytes(bytes)
+	tempStack := []*big.Int{gasPrice}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func basefee(stack []*big.Int, block Block) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(block.BaseFee[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	baseFee := new(big.Int)
+	baseFee.SetBytes(bytes)
+	tempStack := []*big.Int{baseFee}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func coinbase(stack []*big.Int, block Block) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(block.CoinBase[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	coinBase := new(big.Int)
+	coinBase.SetBytes(bytes)
+	tempStack := []*big.Int{coinBase}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func timestamp(stack []*big.Int, block Block) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(block.Timestamp[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	coinBase := new(big.Int)
+	coinBase.SetBytes(bytes)
+	tempStack := []*big.Int{coinBase}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func number(stack []*big.Int, block Block) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(block.Number[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	coinBase := new(big.Int)
+	coinBase.SetBytes(bytes)
+	tempStack := []*big.Int{coinBase}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func difficulty(stack []*big.Int, block Block) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(block.Difficulty[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	coinBase := new(big.Int)
+	coinBase.SetBytes(bytes)
+	tempStack := []*big.Int{coinBase}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func gaslimit(stack []*big.Int, block Block) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(block.GasLimit[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	coinBase := new(big.Int)
+	coinBase.SetBytes(bytes)
+	tempStack := []*big.Int{coinBase}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func chainid(stack []*big.Int, block Block) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(block.ChainID[2:])
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	coinBase := new(big.Int)
+	coinBase.SetBytes(bytes)
+	tempStack := []*big.Int{coinBase}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func blockhash(stack []*big.Int) ([]*big.Int, bool) {
+	x := big.NewInt(0)
+	tempStack := []*big.Int{x}
+	stack = append(tempStack, stack[1:]...)
+	return stack, true
 }
