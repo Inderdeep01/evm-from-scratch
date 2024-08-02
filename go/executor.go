@@ -38,7 +38,7 @@ var functionMap = map[byte]func([]*big.Int) ([]*big.Int, int, bool){
 // @pram   byteCode - The bytecode compiled from a Smart Contract
 // @return stack    - The current state of stack
 // @return bool     - Representing whether the execution was successful(true) or reverted(false)
-func Executor(byteCode []byte) ([]*big.Int, bool) {
+func Executor(byteCode []byte, tx Tx, block Block) ([]*big.Int, bool) {
 	var stack []*big.Int
 	pc := 0 // The Program Counter
 	var success = true
@@ -46,7 +46,7 @@ func Executor(byteCode []byte) ([]*big.Int, bool) {
 	var validJumpDestinations []int
 	// Memory of the EVM - Volatile
 	// Need to initialize maps in go; attempts to write to a nil map will cause a runtime panic
-	var memory = make(map[int64]byte)
+	var memory []byte
 
 	for pc < len(byteCode) {
 		var tempStack []*big.Int
@@ -127,6 +127,34 @@ func Executor(byteCode []byte) ([]*big.Int, bool) {
 			stack, memory, successFlag = mload(stack, memory)
 		} else if op == 83 { // MSTORE8
 			stack, memory, successFlag = mstore8(stack, memory)
+		} else if op == 89 { // MSIZE
+			stack, successFlag = msize(stack, memory)
+		} else if op == 32 { // KECCAK256
+			stack, successFlag = keccak256(stack, memory)
+		} else if op == 48 { // ADDRESS
+			stack, successFlag = address(stack, tx)
+		} else if op == 51 { // msg.sender
+			stack, successFlag = caller(stack, tx)
+		} else if op == 50 { // tx.origin
+			stack, successFlag = origin(stack, tx)
+		} else if op == 58 { // GASPRICE
+			stack, successFlag = gasprice(stack, tx)
+		} else if op == 72 {
+			stack, successFlag = basefee(stack, block)
+		} else if op == 65 {
+			stack, successFlag = coinbase(stack, block)
+		} else if op == 66 {
+			stack, successFlag = timestamp(stack, block)
+		} else if op == 67 {
+			stack, successFlag = number(stack, block)
+		} else if op == 68 {
+			stack, successFlag = difficulty(stack, block)
+		} else if op == 69 {
+			stack, successFlag = gaslimit(stack, block)
+		} else if op == 70 {
+			stack, successFlag = chainid(stack, block)
+		} else if op == 64 {
+			stack, successFlag = blockhash(stack)
 		} else {
 			fmt.Println("******** op *******", op)
 			fmt.Println("********* byteCode ******", byteCode)

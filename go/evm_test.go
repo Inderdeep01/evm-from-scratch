@@ -12,10 +12,12 @@ import (
 )
 
 type testCase struct {
-	Name string `json:"name"`
-	Hint string `json:"hint"`
-	Code code   `json:"code"`
-	Want want   `json:"expect"`
+	Name  string `json:"name"`
+	Hint  string `json:"hint"`
+	Tx    Tx     `json:"tx"`
+	Block Block  `json:"block"`
+	Code  code   `json:"code"`
+	Want  want   `json:"expect"`
 }
 
 type code struct {
@@ -92,7 +94,7 @@ func TestEVM(t *testing.T) {
 				fatalAndBugReport(t, "hex.DecodeString(%q) error %v", tt.Code.Bin, err)
 			}
 
-			got, gotSuccess := Evm(bin)
+			got, gotSuccess := Evm(bin, tt.Tx, tt.Block)
 			if gotSuccess != tt.Want.Success {
 				t.Errorf("Evm(…) got success = %t; want %t", gotSuccess, tt.Want.Success)
 			}

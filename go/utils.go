@@ -22,3 +22,17 @@ func getValidJumpDestinations(byteCode []byte, pc int) []int {
 	}
 	return validJumpDestinations
 }
+
+func resizeMemoryIfRequired(memory []byte, startingOffset int, length int) []byte {
+	timesToExpand := int((startingOffset + length) / 32)
+	newMemorySize := 32 * (timesToExpand + 1)
+	if newMemorySize > len(memory) {
+		var tempMemory = make([]byte, 32*(timesToExpand+1))
+		for i, element := range memory {
+			tempMemory[i] = element
+		}
+		memory = tempMemory
+	}
+
+	return memory
+}
