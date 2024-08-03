@@ -608,7 +608,7 @@ func keccak256(stack []*big.Int, memory []byte) ([]*big.Int, bool) {
 }
 
 func address(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(tx.To[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(tx.To))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -621,7 +621,7 @@ func address(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
 }
 
 func caller(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(tx.From[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(tx.From))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -634,7 +634,7 @@ func caller(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
 }
 
 func origin(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(tx.Origin[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(tx.Origin))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -647,7 +647,7 @@ func origin(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
 }
 
 func gasprice(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(tx.GasPrice[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(tx.GasPrice))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -660,7 +660,7 @@ func gasprice(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
 }
 
 func basefee(stack []*big.Int, block Block) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(block.BaseFee[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(block.BaseFee))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -673,7 +673,7 @@ func basefee(stack []*big.Int, block Block) ([]*big.Int, bool) {
 }
 
 func coinbase(stack []*big.Int, block Block) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(block.CoinBase[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(block.CoinBase))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -686,7 +686,7 @@ func coinbase(stack []*big.Int, block Block) ([]*big.Int, bool) {
 }
 
 func timestamp(stack []*big.Int, block Block) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(block.Timestamp[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(block.Timestamp))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -699,7 +699,7 @@ func timestamp(stack []*big.Int, block Block) ([]*big.Int, bool) {
 }
 
 func number(stack []*big.Int, block Block) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(block.Number[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(block.Number))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -712,7 +712,7 @@ func number(stack []*big.Int, block Block) ([]*big.Int, bool) {
 }
 
 func difficulty(stack []*big.Int, block Block) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(block.Difficulty[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(block.Difficulty))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -725,7 +725,7 @@ func difficulty(stack []*big.Int, block Block) ([]*big.Int, bool) {
 }
 
 func gaslimit(stack []*big.Int, block Block) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(block.GasLimit[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(block.GasLimit))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -738,7 +738,7 @@ func gaslimit(stack []*big.Int, block Block) ([]*big.Int, bool) {
 }
 
 func chainid(stack []*big.Int, block Block) ([]*big.Int, bool) {
-	bytes, err := hex.DecodeString(block.ChainID[2:])
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(block.ChainID))
 	if err != nil {
 		fmt.Println(err)
 		return stack, false
@@ -755,4 +755,130 @@ func blockhash(stack []*big.Int) ([]*big.Int, bool) {
 	tempStack := []*big.Int{x}
 	stack = append(tempStack, stack[1:]...)
 	return stack, true
+}
+
+func balance(stack []*big.Int, state State) ([]*big.Int, bool) {
+	if len(stack) < 1 {
+		return stack, false
+	}
+	addr := "0x" + stack[0].Text(16)
+	bal := state[addr].Balance
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(bal))
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	x := new(big.Int)
+	x.SetBytes(bytes)
+	tempStack := []*big.Int{x}
+	stack = append(tempStack, stack[1:]...)
+	return stack, true
+}
+
+func callvalue(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
+	bytes, err := hex.DecodeString(checkAndConvertToValidHexString(tx.Value))
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	gasPrice := new(big.Int)
+	gasPrice.SetBytes(bytes)
+	tempStack := []*big.Int{gasPrice}
+	stack = append(tempStack, stack[:]...)
+	return stack, true
+}
+
+func calldataload(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
+	if len(stack) < 1 {
+		return stack, false
+	}
+	offset := int(stack[0].Int64())
+	x := new(big.Int)
+	bytes := make([]byte, 32)
+	data, err := hex.DecodeString(checkAndConvertToValidHexString(tx.Data))
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	for i, j := 0, offset; i < len(bytes); i, j = i+1, j+1 {
+		if j == len(data) { //
+			break
+		}
+		bytes[i] = data[j]
+	}
+	x.SetBytes(bytes)
+	var tempStack []*big.Int
+	tempStack = append(tempStack, x)
+	stack = append(tempStack, stack[1:]...)
+	return stack, true
+}
+
+func calldatasize(stack []*big.Int, tx Tx) ([]*big.Int, bool) {
+	data, err := hex.DecodeString(checkAndConvertToValidHexString(tx.Data))
+	if err != nil {
+		fmt.Println(err)
+		return stack, false
+	}
+	size := big.NewInt(int64(len(data)))
+	var tempStack []*big.Int
+	tempStack = append(tempStack, size)
+	stack = append(tempStack, stack...)
+	return stack, true
+}
+
+func calldatacopy(stack []*big.Int, tx Tx, memory []byte) ([]*big.Int, []byte, bool) {
+	if len(stack) < 3 {
+		return stack, memory, false
+	}
+	destOffset := int(stack[0].Int64())
+	calldataOffset := int(stack[1].Int64())
+	size := int(stack[2].Int64())
+	// loading data from calldata
+	bytes := make([]byte, 32)
+	data, err := hex.DecodeString(checkAndConvertToValidHexString(tx.Data))
+	if err != nil {
+		fmt.Println(err)
+		return stack, memory, false
+	}
+	for i, j := 0, calldataOffset; i < size; i, j = i+1, j+1 {
+		if j == len(data) { //
+			break
+		}
+		bytes[i] = data[j]
+	}
+	memory = resizeMemoryIfRequired(memory, destOffset, len(bytes))
+	for i, j := 0, destOffset; i < len(bytes); i, j = i+1, j+1 {
+		memory[j] = bytes[i]
+	}
+	return stack[3:], memory, true
+}
+
+func codesize(stack []*big.Int, byteCode []byte) ([]*big.Int, bool) {
+	x := big.NewInt(int64(len(byteCode)))
+	var tempStack []*big.Int
+	tempStack = append(tempStack, x)
+	stack = append(tempStack, stack...)
+	return stack, true
+}
+
+func codecopy(stack []*big.Int, memory []byte, byteCode []byte) ([]*big.Int, []byte, bool) {
+	if len(stack) < 3 {
+		return stack, memory, false
+	}
+	destOffset := int(stack[0].Int64())
+	offset := int(stack[1].Int64())
+	size := int(stack[2].Int64())
+	// loading data from calldata
+	bytes := make([]byte, size)
+	for i, j := 0, offset; i < size; i, j = i+1, j+1 {
+		if j == len(byteCode) { //
+			break
+		}
+		bytes[i] = byteCode[j]
+	}
+	memory = resizeMemoryIfRequired(memory, destOffset, len(bytes))
+	for i, j := 0, destOffset; i < len(bytes); i, j = i+1, j+1 {
+		memory[j] = bytes[i]
+	}
+	return stack[3:], memory, true
 }

@@ -36,3 +36,15 @@ func resizeMemoryIfRequired(memory []byte, startingOffset int, length int) []byt
 
 	return memory
 }
+
+func checkAndConvertToValidHexString(hexString string) string {
+	if hexString != "" && hexString[:2] == "0x" {
+		hexString = hexString[2:]
+	}
+	if len(hexString)%2 != 0 {
+		// Strip the "0x" from the input string and add a preceding "0"
+		hexString = "0" + hexString
+	}
+
+	return hexString
+}

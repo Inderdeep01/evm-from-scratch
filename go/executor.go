@@ -38,7 +38,7 @@ var functionMap = map[byte]func([]*big.Int) ([]*big.Int, int, bool){
 // @pram   byteCode - The bytecode compiled from a Smart Contract
 // @return stack    - The current state of stack
 // @return bool     - Representing whether the execution was successful(true) or reverted(false)
-func Executor(byteCode []byte, tx Tx, block Block) ([]*big.Int, bool) {
+func Executor(byteCode []byte, tx Tx, block Block, state State) ([]*big.Int, bool) {
 	var stack []*big.Int
 	pc := 0 // The Program Counter
 	var success = true
@@ -155,6 +155,20 @@ func Executor(byteCode []byte, tx Tx, block Block) ([]*big.Int, bool) {
 			stack, successFlag = chainid(stack, block)
 		} else if op == 64 {
 			stack, successFlag = blockhash(stack)
+		} else if op == 49 {
+			stack, successFlag = balance(stack, state)
+		} else if op == 52 {
+			stack, successFlag = callvalue(stack, tx)
+		} else if op == 53 {
+			stack, successFlag = calldataload(stack, tx)
+		} else if op == 54 {
+			stack, successFlag = calldatasize(stack, tx)
+		} else if op == 55 {
+			stack, memory, successFlag = calldatacopy(stack, tx, memory)
+		} else if op == 56 {
+			stack, successFlag = codesize(stack, byteCode)
+		} else if op == 57 {
+			stack, memory, successFlag = codecopy(stack, memory, byteCode)
 		} else {
 			fmt.Println("******** op *******", op)
 			fmt.Println("********* byteCode ******", byteCode)

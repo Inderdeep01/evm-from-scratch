@@ -16,6 +16,7 @@ type testCase struct {
 	Hint  string `json:"hint"`
 	Tx    Tx     `json:"tx"`
 	Block Block  `json:"block"`
+	State State  `json:"state"`
 	Code  code   `json:"code"`
 	Want  want   `json:"expect"`
 }
@@ -94,7 +95,7 @@ func TestEVM(t *testing.T) {
 				fatalAndBugReport(t, "hex.DecodeString(%q) error %v", tt.Code.Bin, err)
 			}
 
-			got, gotSuccess := Evm(bin, tt.Tx, tt.Block)
+			got, gotSuccess := Evm(bin, tt.Tx, tt.Block, tt.State)
 			if gotSuccess != tt.Want.Success {
 				t.Errorf("Evm(…) got success = %t; want %t", gotSuccess, tt.Want.Success)
 			}
