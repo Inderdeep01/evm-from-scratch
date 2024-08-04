@@ -29,6 +29,17 @@ type Code struct {
 // @dev State of EVM is a mapping of an addresses to the Account
 type State map[string]Account
 
+// ContractStorage is a mapping of 32 bytes key to 32 bytes value
+// @dev Since Golang does not allow []byte to be the key type, we can encode the bytes to string for storing it
+type ContractStorage map[string][]byte
+
+var Storage = ContractStorage{}
+
+type EVMMemory struct {
+	Memory          []byte
+	StartingIndices []int
+}
+
 // Tx stores all the data which accessed in smart contracts using 'tx' or 'msg' object
 // @notice Although 'tx' and 'msg' are different objects in solidity, for the simplicity sake, here they are stored in
 // same object. The opcodes to access those values work just fine
@@ -52,8 +63,14 @@ type Block struct {
 	ChainID    string `json:"chainid"`
 }
 
-// EVMState is the combination of all the above structs - to make function calls more convenient
-type EVMState struct {
+type Log struct {
+	Address string   `json:"address"`
+	Data    string   `json:"data"`
+	Topics  []string `json:"topics"`
+}
+
+// EVMContext is the combination of all the above structs - to make function calls more convenient
+type EVMContext struct {
 	State          State
 	Tx             Tx
 	Block          Block
@@ -61,9 +78,18 @@ type EVMState struct {
 	Stack          []*uint256.Int
 	Memory         []byte
 	ProgramCounter int
+	OpCodeCounter  int
 	Success        bool
+	HaltExecution  bool
+	Logs           []Log
 	//GasConsumed    uint256.Int
 	//GasRefund      uint256.Int
+}
+
+type ReturnContext struct {
+	Stack  []*big.Int
+	Logs   []Log
+	Return string
 }
 
 // Evm Run runs the EVM code and returns the stack and a success indicator.
@@ -73,7 +99,7 @@ type EVMState struct {
 // @param state    - Current state of EVM (mapping of address to Account)
 // @return stack   - For testcases to assess the correctness
 // @return bool    - Indicating whether the execution was successful(true) or reverted(false)
-func Evm(byteCode []byte, tx Tx, block Block, state State) ([]*big.Int, bool) {
+func Evm(byteCode []byte, tx Tx, block Block, state State) ([]*big.Int, []Log, string, bool) {
 	// Invoke the Executor
-	return Executor(byteCode, tx, block, state)
+	return Executor(byteCode, tx, block, state, false)
 }

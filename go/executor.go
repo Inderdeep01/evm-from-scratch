@@ -1,9 +1,13 @@
 package evm
 
 import (
+	"encoding/hex"
 	"fmt"
 	"math/big"
 )
+
+// HaltExecution is the Flag variable to halt execution
+var HaltExecution bool
 
 // functionMap Stores a mapping of opcodes to their respective functions
 var functionMap = map[byte]func([]*big.Int) ([]*big.Int, int, bool){
@@ -38,7 +42,8 @@ var functionMap = map[byte]func([]*big.Int) ([]*big.Int, int, bool){
 // @pram   byteCode - The bytecode compiled from a Smart Contract
 // @return stack    - The current state of stack
 // @return bool     - Representing whether the execution was successful(true) or reverted(false)
-func Executor(byteCode []byte, tx Tx, block Block, state State) ([]*big.Int, bool) {
+func Executor(byteCode []byte, tx Tx, block Block, state State, isStaticCall bool) ([]*big.Int, []Log, string, bool) {
+	// TODO: Disable all the disallowed operations in a STATICCALL
 	var stack []*big.Int
 	pc := 0 // The Program Counter
 	var success = true
@@ -47,8 +52,15 @@ func Executor(byteCode []byte, tx Tx, block Block, state State) ([]*big.Int, boo
 	// Memory of the EVM - Volatile
 	// Need to initialize maps in go; attempts to write to a nil map will cause a runtime panic
 	var memory []byte
+	// Initialize Logs
+	var logs []Log
+	// Initialize the return string
+	var returnValue string
+	// Initialize the empty returnDataSize
+	var returnDataSize int
+	var lastCallReturnData []byte
 
-	for pc < len(byteCode) {
+	for pc < len(byteCode) && !HaltExecution {
 		var tempStack []*big.Int
 		var successFlag bool
 		op := byteCode[pc]
@@ -169,6 +181,61 @@ func Executor(byteCode []byte, tx Tx, block Block, state State) ([]*big.Int, boo
 			stack, successFlag = codesize(stack, byteCode)
 		} else if op == 57 {
 			stack, memory, successFlag = codecopy(stack, memory, byteCode)
+		} else if op == 59 {
+			stack, successFlag = extcodesize(stack, state)
+		} else if op == 60 {
+			stack, memory, successFlag = extcodecopy(stack, memory, state)
+		} else if op == 63 {
+			stack, successFlag = extcodehash(stack, state)
+		} else if op == 71 {
+			stack, successFlag = selfbalance(stack, state)
+		} else if op == 84 {
+			stack, successFlag = sload(stack)
+		} else if op == 85 {
+			stack, successFlag = sstore(stack, isStaticCall)
+		} else if op >= 160 && op <= 164 {
+			stack, logs, successFlag = logN(stack, memory, logs, tx, op)
+		} else if op == 243 {
+			stack, memory, returnValue, successFlag = returnvalue(stack, memory)
+		} else if op == 253 {
+			stack, memory, returnValue, successFlag = revert(stack, memory)
+		} else if op == 241 {
+			for _, acc := range state {
+				retOffset := int(stack[5].Int64())
+				retSize := int(stack[6].Int64())
+				subByteCode, err := hex.DecodeString(acc.Code.Bin)
+				if err != nil {
+					successFlag = false
+					fmt.Println(err)
+				}
+				_, _, subValue, subSuccessFlag := Executor(subByteCode, Tx{From: tx.To}, Block{}, nil, false)
+				bytes, err := hex.DecodeString(subValue)
+				if err != nil {
+					successFlag = false
+					fmt.Println(err)
+				}
+				returnDataSize = len(bytes)
+				lastCallReturnData = bytes
+				memory = resizeMemoryIfRequired(memory, retOffset, retSize)
+				for i, j := 0, retOffset; i < len(bytes); i, j = i+1, j+1 {
+					memory[j] = bytes[i]
+				}
+				if subSuccessFlag {
+					stack = append([]*big.Int{big.NewInt(1)}, stack[7:]...)
+				} else {
+					stack = append([]*big.Int{big.NewInt(0)}, stack[7:]...)
+				}
+			}
+			successFlag = true
+		} else if op == 61 {
+			successFlag = true
+			stack = append([]*big.Int{big.NewInt(int64(returnDataSize))}, stack...)
+		} else if op == 62 {
+			stack, memory, successFlag = returnDataCopy(stack, memory, lastCallReturnData)
+		} else if op == 244 {
+			stack, memory, lastCallReturnData, successFlag = delegateCall(stack, memory, tx, block, state)
+		} else if op == 250 {
+			stack, memory, lastCallReturnData, successFlag = staticCall(stack, memory, tx, block, state)
 		} else {
 			fmt.Println("******** op *******", op)
 			fmt.Println("********* byteCode ******", byteCode)
@@ -177,5 +244,5 @@ func Executor(byteCode []byte, tx Tx, block Block, state State) ([]*big.Int, boo
 		pc += n + 1
 		success = successFlag && success
 	}
-	return stack, success
+	return stack, logs, returnValue, success
 }

@@ -38,7 +38,7 @@ func resizeMemoryIfRequired(memory []byte, startingOffset int, length int) []byt
 }
 
 func checkAndConvertToValidHexString(hexString string) string {
-	if hexString != "" && hexString[:2] == "0x" {
+	if hexString != "" && len(hexString) >= 2 && hexString[:2] == "0x" {
 		hexString = hexString[2:]
 	}
 	if len(hexString)%2 != 0 {
@@ -46,5 +46,12 @@ func checkAndConvertToValidHexString(hexString string) string {
 		hexString = "0" + hexString
 	}
 
+	return hexString
+}
+
+func getFormattedHexString(hexString string) string {
+	if hexString != "" && len(hexString) >= 2 && hexString[:2] != "0x" {
+		hexString = "0x" + hexString
+	}
 	return hexString
 }
