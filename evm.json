@@ -1635,7 +1635,7 @@
   },
   {
     "name": "CALLVALUE",
-    "hint": "Read \"Calls\" section of the course learning materials. Solidity calls this msg.value, it is amount of wei sent as part of this transaction",
+        "hint": "Read \"Calls\" section of the course learning materials. Solidity calls this msg.value, it is amount of wei sent as part of this transaction",
     "tx": {
       "value": "0x1000"
     },
