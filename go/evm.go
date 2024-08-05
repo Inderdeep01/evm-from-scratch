@@ -78,12 +78,14 @@ type EVMContext struct {
 	Stack          []*uint256.Int
 	Memory         []byte
 	ProgramCounter int
-	OpCodeCounter  int
-	Success        bool
-	HaltExecution  bool
+	GasConsumed    uint256.Int
+	GasRefund      uint256.Int
 	Logs           []Log
-	//GasConsumed    uint256.Int
-	//GasRefund      uint256.Int
+	// Flags and other important variables
+	isStaticCall  bool
+	OpCodeCounter int
+	Success       bool
+	HaltExecution bool
 }
 
 type ReturnContext struct {

@@ -6,6 +6,11 @@ import (
 	"math/big"
 )
 
+/*
+! IMPORTANT !
+This code is currently being refactored
+*/
+
 // HaltExecution is the Flag variable to halt execution
 var HaltExecution bool
 

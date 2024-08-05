@@ -7,6 +7,9 @@ Welcome to **EVM From Scratch**! It's a 100% practical course that will help you
 # Fully Implemented
 I cloned this repo and chose golang to try and build the EVM from scratch. It supports <b>140 opcodes</b>. Since it is an isolated instance, support for other opcodes is much more complex as they are dependent on the current state and block of the Ethereum Network. My implementation is tested against all the given testcases.
 
+### Note
+I am currently refactoring the code, I couldn't resist sharing the progress. Please mind the messy code for now :)
+
 ![Test Cases](Screenshot.png)
 
 ## Getting Started
