@@ -931,14 +931,15 @@ func extcodecopy(stack []*big.Int, memory []byte, state State) ([]*big.Int, []by
 	// loading data from state
 	codeBytes := make([]byte, size)
 	for i, j := 0, offset; i < size; i, j = i+1, j+1 {
-		if j == len(bytes) { //
-			break
+		if j >= len(bytes) { //
+			codeBytes[i] = 0
+		} else {
+			codeBytes[i] = bytes[j]
 		}
-		codeBytes[i] = bytes[j]
 	}
-	memory = resizeMemoryIfRequired(memory, destOffset, len(bytes))
-	for i, j := 0, destOffset; i < len(bytes); i, j = i+1, j+1 {
-		memory[j] = bytes[i]
+	memory = resizeMemoryIfRequired(memory, destOffset, len(codeBytes))
+	for i, j := 0, destOffset; i < len(codeBytes); i, j = i+1, j+1 {
+		memory[j] = codeBytes[i]
 	}
 	return stack[4:], memory, true
 }
@@ -1156,4 +1157,75 @@ func staticCall(stack []*big.Int, memory []byte, tx Tx, block Block, state State
 		stack = append([]*big.Int{big.NewInt(0)}, stack[6:]...)
 	}
 	return stack, memory, bytes, true
+}
+
+func create(stack []*big.Int, memory []byte, tx Tx, state State, isStaticCall bool) ([]*big.Int, []byte, State, bool) {
+	if len(stack) < 3 || isStaticCall {
+		return stack, memory, state, false
+	}
+	value := stack[0]
+	offset := int(stack[1].Int64())
+	size := int(stack[2].Int64())
+	bytes := make([]byte, size)
+	memory = resizeMemoryIfRequired(memory, offset, size)
+	for i, j := 0, offset; i < size; i, j = i+1, j+1 {
+		bytes[i] = memory[j]
+	}
+	addr := tx.To
+	_, alreadyExists := state[addr]
+	if alreadyExists {
+		return stack[3:], memory, state, false
+	}
+	_, _, subValue, subSuccess := Executor(bytes, Tx{}, Block{}, nil, false)
+	if subSuccess {
+
+		acc := Account{
+			Balance: getFormattedHexString(value.Text(16)),
+			Code:    Code{Bin: checkAndConvertToValidHexString(subValue)},
+		}
+		state[addr] = acc
+		addrBytes, err := hex.DecodeString(checkAndConvertToValidHexString(addr))
+		if err != nil {
+			fmt.Println(err)
+			return stack[3:], memory, state, false
+		}
+		x := new(big.Int)
+		x.SetBytes(addrBytes)
+		stack = append([]*big.Int{x}, stack[3:]...)
+	} else {
+		x := big.NewInt(0)
+		stack = append([]*big.Int{x}, stack[3:]...)
+	}
+	return stack, memory, state, true
+}
+
+func selfDestruct(stack []*big.Int, state State) ([]*big.Int, State, bool) {
+	if len(stack) < 1 {
+		return stack, state, false
+	}
+	addressToSendValue := getFormattedHexString(stack[0].Text(16))
+	var bal string
+	var selfAddr string
+	for addr, acc := range state {
+		bal = acc.Balance
+		selfAddr = addr
+	}
+	account, exists := state[addressToSendValue]
+	if !exists {
+		account = Account{
+			Balance: bal,
+			Code:    Code{},
+		}
+		state[addressToSendValue] = account
+	} else {
+		existingBalBytes, _ := hex.DecodeString(checkAndConvertToValidHexString(account.Balance))
+		newBalanceBytes, _ := hex.DecodeString(checkAndConvertToValidHexString(bal))
+		a, b := new(big.Int), new(big.Int)
+		a.SetBytes(existingBalBytes)
+		b.SetBytes(newBalanceBytes)
+		a.Add(a, b)
+		account.Balance = getFormattedHexString(a.Text(16))
+	}
+	delete(state, selfAddr)
+	return stack[1:], state, true
 }

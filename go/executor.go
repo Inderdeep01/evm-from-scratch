@@ -60,6 +60,10 @@ func Executor(byteCode []byte, tx Tx, block Block, state State, isStaticCall boo
 	var returnDataSize int
 	var lastCallReturnData []byte
 
+	if state == nil {
+		state = State{}
+	}
+
 	for pc < len(byteCode) && !HaltExecution {
 		var tempStack []*big.Int
 		var successFlag bool
@@ -200,7 +204,11 @@ func Executor(byteCode []byte, tx Tx, block Block, state State, isStaticCall boo
 		} else if op == 253 {
 			stack, memory, returnValue, successFlag = revert(stack, memory)
 		} else if op == 241 {
-			for _, acc := range state {
+			if len(stack) >= 7 {
+				var acc Account
+				for _, val := range state {
+					acc = val
+				}
 				retOffset := int(stack[5].Int64())
 				retSize := int(stack[6].Int64())
 				subByteCode, err := hex.DecodeString(acc.Code.Bin)
@@ -208,7 +216,7 @@ func Executor(byteCode []byte, tx Tx, block Block, state State, isStaticCall boo
 					successFlag = false
 					fmt.Println(err)
 				}
-				_, _, subValue, subSuccessFlag := Executor(subByteCode, Tx{From: tx.To}, Block{}, nil, false)
+				_, _, subValue, subSuccessFlag := Executor(subByteCode, Tx{From: tx.To}, Block{}, state, false)
 				bytes, err := hex.DecodeString(subValue)
 				if err != nil {
 					successFlag = false
@@ -236,10 +244,12 @@ func Executor(byteCode []byte, tx Tx, block Block, state State, isStaticCall boo
 			stack, memory, lastCallReturnData, successFlag = delegateCall(stack, memory, tx, block, state)
 		} else if op == 250 {
 			stack, memory, lastCallReturnData, successFlag = staticCall(stack, memory, tx, block, state)
+		} else if op == 240 {
+			stack, memory, state, successFlag = create(stack, memory, tx, state, isStaticCall)
+		} else if op == 255 {
+			stack, state, successFlag = selfDestruct(stack, state)
 		} else {
-			fmt.Println("******** op *******", op)
-			fmt.Println("********* byteCode ******", byteCode)
-			fmt.Println("Stack:", stack)
+			// Do Nothing
 		}
 		pc += n + 1
 		success = successFlag && success
